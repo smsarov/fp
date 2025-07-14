@@ -43,15 +43,17 @@ const processSequence = ({ value, writeLog, handleSuccess, handleError }) => {
   const hasValidLength = pipe(length, both(gt(__, 2), lt(__, 10)));
   const isPositive = pipe(unary(parseFloat), lt(0));
   const hasValidChars = test(/^[0-9.]+$/);
-  const hasAtMostOneDot = (str) => (str.match(/\./g) || []).length <= 1;
-  const doesNotStartWithDot = (str) => !str.startsWith(".");
+  const isValidFloat = allPass([
+    test(/^[0-9]*\.?[0-9]+$/), // не заканчивается на точку
+    test(/^[0-9]/), // не начинается с точки
+    (str) => (str.match(/\./g) || []).length <= 1, // не более одной точки
+  ]);
 
   const isValid = allPass([
     hasValidLength,
     isPositive,
     hasValidChars,
-    hasAtMostOneDot,
-    doesNotStartWithDot,
+    isValidFloat
   ]);
 
   // API get
@@ -88,7 +90,8 @@ const processSequence = ({ value, writeLog, handleSuccess, handleError }) => {
         },
         getAnimalById,
         andThen(prop("result")),
-        andThen(handleSuccess)
+        andThen(handleSuccess),
+        otherwise(handleApiError)
       )
     ),
     otherwise(handleApiError)
