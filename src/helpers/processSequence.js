@@ -14,38 +14,90 @@
  * Иногда промисы от API будут приходить в состояние rejected, (прямо как и API в реальной жизни)
  * Ответ будет приходить в поле {result}
  */
- import Api from '../tools/api';
 
- const api = new Api();
+import {
+  __,
+  allPass,
+  andThen,
+  both,
+  flip,
+  gt,
+  ifElse,
+  invoker,
+  length,
+  lt,
+  pipe,
+  prop,
+  tap,
+  test,
+  tryCatch,
+  unary,
+  otherwise,
+} from "ramda";
+import Api from "../tools/api";
 
- /**
-  * Я – пример, удали меня
-  */
- const wait = time => new Promise(resolve => {
-     setTimeout(resolve, time);
- })
+const api = new Api();
 
- const processSequence = ({value, writeLog, handleSuccess, handleError}) => {
-     /**
-      * Я – пример, удали меня
-      */
-     writeLog(value);
+const processSequence = ({ value, writeLog, handleSuccess, handleError }) => {
+  // Валидация
+  const hasValidLength = pipe(length, both(gt(__, 2), lt(__, 10)));
+  const isPositive = pipe(unary(parseFloat), lt(0));
+  const hasValidChars = test(/^[0-9.]+$/);
+  const hasAtMostOneDot = (str) => (str.match(/\./g) || []).length <= 1;
+  const doesNotStartWithDot = (str) => !str.startsWith(".");
 
-     api.get('https://api.tech/numbers/base', {from: 2, to: 10, number: '01011010101'}).then(({result}) => {
-         writeLog(result);
-     });
+  const isValid = allPass([
+    hasValidLength,
+    isPositive,
+    hasValidChars,
+    hasAtMostOneDot,
+    doesNotStartWithDot,
+  ]);
 
-     wait(2500).then(() => {
-         writeLog('SecondLog')
+  // API get
+  const getApi = flip(invoker(1, "get"))(api);
+  const getNumberBase = getApi("https://api.tech/numbers/base");
+  const getAnimalById = (id) => getApi(`https://animals.tech/${id}`)({});
 
-         return wait(1500);
-     }).then(() => {
-         writeLog('ThirdLog');
+  const toRoundedNumber = pipe(unary(parseFloat), Math.round);
 
-         return wait(400);
-     }).then(() => {
-         handleSuccess('Done');
-     });
- }
+  const handleValidationError = () => handleError("ValidationError");
+  const handleApiError = () => handleError("API Error");
+
+  const processValid = pipe(
+    toRoundedNumber,
+    tap(writeLog),
+    (rounded) =>
+      getNumberBase({
+        from: 10,
+        to: 2,
+        number: rounded,
+      }),
+    andThen(
+      pipe(
+        prop("result"),
+        tap(writeLog),
+        (binaryStr) => {
+          const len = binaryStr.length;
+          writeLog(len);
+          const squared = len ** 2;
+          writeLog(squared);
+          const mod = squared % 3;
+          writeLog(mod);
+          return mod;
+        },
+        getAnimalById,
+        andThen(prop("result")),
+        andThen(handleSuccess)
+      )
+    ),
+    otherwise(handleApiError)
+  );
+
+  return tryCatch(
+    pipe(tap(writeLog), ifElse(isValid, processValid, handleValidationError)),
+    handleValidationError
+  )(value);
+};
 
 export default processSequence;

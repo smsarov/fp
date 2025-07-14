@@ -16,33 +16,36 @@
 import * as R from "ramda";
 
 // 1. Красная звезда, зеленый квадрат, все остальные белые.
-export const validateFieldN1 = ({ star, square, triangle, circle }) => {
-  if (triangle !== "white" || circle !== "white") {
-    return false;
-  }
-
-  return star === "red" && square === "green";
-};
+export const validateFieldN1 = R.allPass([
+  R.whereEq({
+    star: "red",
+    square: "green",
+    triangle: "white",
+    circle: "white",
+  }),
+]);
 
 // 2. Как минимум две фигуры зеленые.
 export const validateFieldN2 = R.pipe(
   R.values,
   R.filter(R.equals("green")),
   R.length,
-  R.lte(2)
+  R.gte(R.__, 2)
 );
 
 // 3. Количество красных фигур равно кол-ву синих.
 export const validateFieldN3 = R.pipe(
   R.values,
   R.countBy(R.identity),
-  ({ red, blue }) => red === blue
+  ({ red = 0, blue = 0 }) => red === blue
 );
 
 // 4. Синий круг, красная звезда, оранжевый квадрат треугольник любого цвета
-export const validateFieldN4 = ({ star, square, triangle, circle }) => {
-  return circle === "blue" && star === "red" && square === "orange";
-};
+export const validateFieldN4 = R.whereEq({
+  circle: "blue",
+  star: "red",
+  square: "orange",
+});
 
 // 5. Три фигуры одного любого цвета кроме белого (четыре фигуры одного цвета – это тоже true).
 export const validateFieldN5 = R.pipe(
@@ -50,7 +53,7 @@ export const validateFieldN5 = R.pipe(
   R.filter(R.complement(R.equals("white"))),
   R.countBy(R.identity),
   R.values,
-  R.any(R.lte(3))
+  R.any(R.gte(R.__, 3))
 );
 
 // 6. Ровно две зеленые фигуры (одна из зелёных – это треугольник), плюс одна красная. Четвёртая оставшаяся любого доступного цвета, но не нарушающая первые два условия
